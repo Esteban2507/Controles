@@ -1,1 +1,0 @@
-"""Lógica principal de procesamiento."""

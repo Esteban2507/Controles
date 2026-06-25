@@ -1,0 +1,104 @@
+# ===== Normalización de moneda =====
+equivalencias_moneda:
+  ARCA:
+    PES: ARS
+    DOL: USD
+    EUR: EUR
+    EURO: EUR
+    "&EUR": EUR
+    "&EURO": EUR
+    Tipo: tipo
+
+  genericas:
+    PESO: ARS
+    PESOS: ARS
+    DOLAR: USD
+    DOLARES: USD
+    EURO: EUR
+
+# ===== Tolerancia para comparar montos (en unidades monetarias) =====
+tolerancia_monto: 2.0
+
+# ===== Configuración de colores del Dashboard (Hexadecimal sin #) =====
+dashboard_colors:
+  "OK": "00B050"               # Verde
+  "Error de Monto": "FF99CC"   # Rosa 
+  "Error de Moneda": "FFFF00"  # Amarillo
+  "Error de Tipo Cambio": "FFB347"  # Naranja
+  "Duplicado en ARCA": "D6EAF8" # Azul claro
+  "Faltante en ARCA": "FCF3CF" # Amarillo claro
+  "Posible duplicado": "FFC000" # Naranja suave
+
+# ===== Moneda por defecto para CDP (si celda vacía) =====
+default_currency_cdp: EUR
+
+# ===== Refrescar reportes con Excel ANTES de leer =====
+refresh_before_read: true
+
+# Mostrar info de diagnóstico en consola (encabezados crudos, tamaños, etc.)
+diagnostico: false
+
+# ===== Logging =====
+logging:
+  level: WARNING  # DEBUG | INFO | WARNING | ERROR | CRITICAL
+
+# ===== OpenAI / Azure OpenAI Configuration =====
+# Para usar OpenAI directo:
+openai_api_key: ""  # Tu API key de OpenAI
+
+# Para usar Azure OpenAI (GitHub Copilot usa esto):
+azure_openai:
+  api_key: ""  # Tu Azure OpenAI API key
+  endpoint: ""  # Ej: https://your-resource.openai.azure.com/
+  deployment_name: "gpt-4"  # Nombre del deployment (gpt-4, gpt-35-turbo, etc.)
+  api_version: "2024-02-01"  # Versión de la API
+
+# El agente detectará automáticamente cuál usar basado en la configuración disponible
+
+# ===== Mapas de columnas =====
+columnas:
+  ARCA:
+    # Fecha y proveedor (vendor)
+    Fecha: issue_date
+    "Proveedor": vendor
+    "Denominación Receptor": vendor
+    "Denominación Receptor": vendor  # NBSP entre palabras
+    "Denominacion Receptor": vendor
+    Denominacion: vendor
+
+    # Monto (varias fuentes posibles)
+    Monto: amount
+
+    # Moneda (varias fuentes)
+    Moneda: currency
+    "Moneda 2": currency
+
+    # Tipo de cambio
+    "Tipo Cambio": tipo_cambio
+
+    # Claves de control
+    Concatenado: Concatenado
+    duplicados: duplicados
+
+  CDP:
+    "Fecha Emision": issue_date
+    "Tipo de doc": doc_type
+    Proveedor: vendor
+    Moneda: currency
+    Monto: amount
+    "Tipo Cambio": tipo_cambio
+    Concatenado: Concatenado
+    ERP: erp
+    duplicados: duplicados
+
+  E1:
+    "Fecha Emision": issue_date
+    "Tipo de doc": doc_type
+    Proveedor: vendor
+    Moneda: currency
+    Monto: amount
+    "Tipo Cambio": tipo_cambio
+    "Concatenado.E1":
+      - Concatenado
+      - duplicados
+    ERP: erp

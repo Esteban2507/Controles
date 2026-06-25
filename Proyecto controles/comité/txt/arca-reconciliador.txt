@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de integridad y duplicados ARCA ↔ ERP</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@400;600;700;800&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0c12;
+      --surface: #111420;
+      --surface2: #181c2e;
+      --surface3: #1f2438;
+      --accent: #4fffb0;
+      --accent2: #7c6fff;
+      --danger: #ff6b6b;
+      --warn: #ffd93d;
+      --text: #e8edf5;
+      --text2: #8892aa;
+      --text3: #4a5270;
+      --border: rgba(255, 255, 255, 0.06);
+      --border2: rgba(255, 255, 255, 0.12);
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'Syne', sans-serif;
+      --radius: 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--surface3);
+      border-radius: 4px;
+    }
+
+    #apiScreen {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-image: radial-gradient(ellipse at 60% 20%, rgba(76, 255, 176, .06) 0%, transparent 60%),
+        radial-gradient(ellipse at 20% 80%, rgba(124, 111, 255, .05) 0%, transparent 50%);
+    }
+
+    .api-card {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 20px;
+      padding: 40px 44px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 40px 80px rgba(0, 0, 0, .6);
+      animation: fadeUp .4s ease both;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .api-logo {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      margin-bottom: 16px;
+    }
+
+    .api-title {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -.5px;
+      margin-bottom: 6px;
+    }
+
+    .api-sub {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .api-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .api-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+    }
+
+    .api-input {
+      width: 100%;
+      padding: 11px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .api-input:focus {
+      border-color: var(--accent);
+    }
+
+    .api-input[readonly] {
+      opacity: .6;
+    }
+
+    .api-hint {
+      font-size: 12px;
+      color: var(--text2);
+      background: var(--surface2);
+      border-left: 3px solid var(--accent2);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin: 14px 0;
+      line-height: 1.5;
+    }
+
+    .api-hint a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .api-hint a:hover {
+      text-decoration: underline;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 13px;
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius);
+      color: #0a0c12;
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+      margin-top: 8px;
+    }
+
+    .btn-primary:hover {
+      opacity: .9;
+    }
+
+    .btn-primary:active {
+      transform: scale(.99);
+    }
+
+    .btn-primary:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    .api-error {
+      font-size: 12px;
+      color: var(--danger);
+      font-family: var(--mono);
+      margin-top: 6px;
+      min-height: 18px;
+    }
+
+    .api-footer {
+      font-size: 11px;
+      color: var(--text3);
+      text-align: center;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      margin-top: 16px;
+    }
+
+    .key-warning {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      background: rgba(255, 217, 61, .06);
+      border: 1px solid rgba(255, 217, 61, .2);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      font-size: 12px;
+      color: var(--warn);
+      line-height: 1.5;
+    }
+
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: relative;
+      z-index: 10;
+    }
+
+    .logo {
+      width: 34px;
+      height: 34px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -.3px;
+    }
+
+    .header-sub {
+      font-size: 11px;
+      color: var(--text3);
+      font-family: var(--mono);
+    }
+
+    .status-badge {
+      margin-left: auto;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--accent);
+      font-family: var(--mono);
+    }
+
+    .status-badge button {
+      background: none;
+      border: none;
+      color: var(--text3);
+      cursor: pointer;
+      font-size: 11px;
+      text-decoration: underline;
+    }
+
+    .main {
+      display: flex;
+      height: calc(100vh - 63px);
+    }
+
+    .sidebar {
+      width: 300px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .section {
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section:last-child {
+      border-bottom: none;
+    }
+
+    .section-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      margin-bottom: 10px;
+    }
+
+    .upload-zone {
+      border: 2px dashed var(--border2);
+      border-radius: var(--radius);
+      padding: 14px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transition: border-color .2s, background .2s;
+      margin-bottom: 8px;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(79, 255, 176, .04);
+    }
+
+    .upload-zone input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .upload-icon {
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+
+    .upload-label {
+      font-size: 11px;
+      color: var(--text2);
+    }
+
+    .upload-sublabel {
+      font-size: 10px;
+      color: var(--text3);
+      font-family: var(--mono);
+      margin-top: 2px;
+    }
+
+    .file-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(79, 255, 176, .08);
+      border: 1px solid rgba(79, 255, 176, .2);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 11px;
+      color: var(--accent);
+      font-family: var(--mono);
+      word-break: break-all;
+    }
+
+    .file-badge-warn {
+      background: rgba(255, 107, 107, .08);
+      border-color: rgba(255, 107, 107, .2);
+      color: var(--danger);
+    }
+
+    .validation-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 6px;
+    }
+
+    .pill {
+      font-size: 9px;
+      font-family: var(--mono);
+      padding: 2px 7px;
+      border-radius: 12px;
+      border: 1px solid var(--border2);
+      color: var(--text3);
+    }
+
+    .pill.ok {
+      border-color: rgba(79, 255, 176, .3);
+      color: var(--accent);
+    }
+
+    .pill.missing {
+      border-color: rgba(255, 107, 107, .3);
+      color: var(--danger);
+    }
+
+    .tol-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tol-row input,
+    .tol-row select {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 8px 10px;
+      outline: none;
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    .tol-row input {
+      flex: 1;
+    }
+
+    .tol-row input:focus,
+    .tol-row select:focus {
+      border-color: var(--accent);
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .stat-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .stat-label {
+      font-size: 9px;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      font-family: var(--mono);
+    }
+
+    .stat-value {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1.2;
+    }
+
+    .stat-value.ok {
+      color: var(--accent);
+    }
+
+    .stat-value.error {
+      color: var(--danger);
+    }
+
+    .stat-value.warn {
+      color: var(--warn);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 11px;
+      color: var(--text2);
+      cursor: pointer;
+      transition: all .15s;
+      font-family: var(--sans);
+    }
+
+    .chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-export {
+      width: 100%;
+      padding: 10px;
+      background: var(--surface3);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background .2s;
+    }
+
+    .btn-export:hover {
+      background: var(--surface3);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-export:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    .chat-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .msg {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      animation: msgIn .25s ease both;
+    }
+
+    @keyframes msgIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .msg.user {
+      flex-direction: row-reverse;
+    }
+
+    .avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+
+    .avatar.agent {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+    }
+
+    .avatar.user {
+      background: var(--surface3);
+    }
+
+    .bubble {
+      max-width: 72%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      line-height: 1.65;
+    }
+
+    .bubble.agent {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-top-left-radius: 2px;
+    }
+
+    .bubble.user {
+      background: var(--accent2);
+      color: #fff;
+      border-top-right-radius: 2px;
+    }
+
+    .typing-indicator {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      padding: 4px 0;
+    }
+
+    .typing-indicator span {
+      width: 6px;
+      height: 6px;
+      background: var(--text3);
+      border-radius: 50%;
+      animation: typingBounce .9s infinite;
+    }
+
+    .typing-indicator span:nth-child(2) {
+      animation-delay: .15s;
+    }
+
+    .typing-indicator span:nth-child(3) {
+      animation-delay: .3s;
+    }
+
+    @keyframes typingBounce {
+
+      0%,
+      80%,
+      100% {
+        transform: translateY(0)
+      }
+
+      40% {
+        transform: translateY(-6px)
+      }
+    }
+
+    .progress-bar-wrap {
+      background: var(--surface3);
+      border-radius: 4px;
+      height: 4px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 4px;
+      transition: width .4s ease;
+    }
+
+    .bubble pre {
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: var(--mono);
+      font-size: 11px;
+      margin-top: 8px;
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+
+    .bubble table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 12px;
+      font-family: var(--mono);
+    }
+
+    .bubble th,
+    .bubble td {
+      padding: 5px 8px;
+      border: 1px solid var(--border2);
+      text-align: left;
+    }
+
+    .bubble th {
+      background: var(--bg);
+      color: var(--text2);
+      font-weight: 600;
+    }
+
+    .bubble td.ok-cell {
+      color: var(--accent);
+    }
+
+    .bubble td.err-cell {
+      color: var(--danger);
+    }
+
+    .bubble td.warn-cell {
+      color: var(--warn);
+    }
+
+    .error-alert {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      background: rgba(255, 107, 107, .08);
+      border: 1px solid rgba(255, 107, 107, .2);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: var(--danger);
+      margin-top: 8px;
+    }
+
+    .error-alert .retry-btn {
+      margin-left: auto;
+      flex-shrink: 0;
+      background: none;
+      border: 1px solid var(--danger);
+      border-radius: 6px;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 11px;
+      padding: 3px 8px;
+      font-family: var(--sans);
+    }
+
+    .error-alert .retry-btn:hover {
+      background: rgba(255, 107, 107, .1);
+    }
+
+    .input-bar {
+      padding: 14px 20px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .input-bar textarea {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      padding: 10px 14px;
+      outline: none;
+      resize: none;
+      max-height: 120px;
+      min-height: 42px;
+      line-height: 1.5;
+      transition: border-color .2s;
+    }
+
+    .input-bar textarea:focus {
+      border-color: var(--accent2);
+    }
+
+    .input-bar textarea::placeholder {
+      color: var(--text3);
+    }
+
+    .btn-send {
+      width: 42px;
+      height: 42px;
+      flex-shrink: 0;
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      color: var(--bg);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity .2s;
+    }
+
+    .btn-send:hover {
+      opacity: .85;
+    }
+
+    .btn-send:disabled {
+      background: var(--surface3);
+      color: var(--text3);
+      cursor: not-allowed;
+    }
+
+    .char-count {
+      font-size: 10px;
+      color: var(--text3);
+      font-family: var(--mono);
+      margin-bottom: 2px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 12px;
+      font-family: var(--mono);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all .3s cubic-bezier(.34, 1.56, .64, 1);
+      z-index: 9999;
+      max-width: 300px;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success {
+      border-color: rgba(79, 255, 176, .3);
+      color: var(--accent);
+    }
+
+    .toast.error {
+      border-color: rgba(255, 107, 107, .3);
+      color: var(--danger);
+    }
+
+    .toast.warn {
+      border-color: rgba(255, 217, 61, .3);
+      color: var(--warn);
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ══════ API SCREEN ══════ -->
+  <div id="apiScreen">
+    <div class="api-card">
+      <div class="api-logo">🧾</div>
+      <div class="api-title">Control de integridad y duplicados ARCA ↔ ERP</div>
+      <div class="api-sub">Auditoría facturas de proveedores con IA.</div>
+
+      <div class="api-row">
+        <div class="api-label">Proveedor de IA</div>
+        <select class="api-input" id="apiProvider" onchange="changeProvider()">
+          <option value="gemini">Google Gemini</option>
+          <option value="openai">OpenAI</option>
+        </select>
+      </div>
+
+      <div class="api-row" style="flex-direction: row; align-items: center; gap: 8px; margin-bottom: 14px;">
+        <input type="checkbox" id="useProxy" onchange="toggleProxy()" style="cursor: pointer; width: 16px; height: 16px;">
+        <label for="useProxy" style="font-size: 12px; color: var(--text2); cursor: pointer; user-select: none;">Usar Backend / Proxy (evitar CORS)</label>
+      </div>
+
+      <div class="api-row" id="rowProxyUrl" style="display: none;">
+        <div class="api-label">URL del Proxy</div>
+        <input class="api-input" id="proxyUrlInput" type="text" value="http://localhost:3000/api/chat" placeholder="http://localhost:3000/api/chat">
+      </div>
+
+      <div class="api-row" id="rowEndpoint" style="display:none;">
+        <div class="api-label">Endpoint</div>
+        <input class="api-input" id="apiEndpoint" type="text" readonly>
+      </div>
+
+      <div class="api-row">
+        <div class="api-label">Modelo</div>
+        <select class="api-input" id="apiModel" onchange="changeModel()">
+          <!-- Populated dynamically -->
+        </select>
+      </div>
+
+      <div class="api-row" id="rowCustomModel" style="display:none;">
+        <div class="api-label">Modelo personalizado</div>
+        <input class="api-input" id="customModelInput" type="text" placeholder="ej: gemini-2.5-pro" oninput="updateCustomModel()">
+      </div>
+
+      <div class="api-row">
+        <div class="api-label" id="keyLabel">API Key</div>
+        <input class="api-input" id="apiKeyInput" type="password" placeholder="sk-proj-..."
+          onkeydown="if(event.key==='Enter') connectApi()" oninput="clearApiError()" autocomplete="off"
+          spellcheck="false">
+        <div class="api-error" id="apiError"></div>
+      </div>
+
+      <div class="api-hint" id="apiHint">
+        📍 <strong>¿No tenés API key?</strong><br>
+        Creala en <a href="https://aistudio.google.com/app/apikey" target="_blank"
+          rel="noopener">aistudio.google.com</a>
+      </div>
+
+      <button class="btn-primary" id="connectBtn" onclick="connectApi()">🔌 Conectar</button>
+
+      <div class="api-footer">
+        🔒 La key se mantiene solo en esta sesión de navegador. No se persiste ni se loguea.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ APP ══════ -->
+  <div class="header">
+    <div class="logo">🧾</div>
+    <div>
+      <div class="header-title">Control de integridad y duplicados ARCA ↔ ERP</div>
+      <div class="header-sub">Auditor de Facturas — Argentina</div>
+    </div>
+    <div class="status-badge" id="statusBadge">
+      <span id="statusProvider">🔑 Google Gemini</span>
+      <button onclick="changeKey()">Cambiar clave</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+
+      <div class="section">
+        <div class="section-title">1 · Archivo ARCA / AFIP</div>
+        <div class="upload-zone" id="zoneArca" ondragover="event.preventDefault(); this.classList.add('dragover')"
+          ondragleave="this.classList.remove('dragover')" ondrop="handleDrop(event,'arca')">
+          <input type="file" accept=".xlsx,.xls" onchange="loadFile(this,'arca')">
+          <div class="upload-icon">📂</div>
+          <div class="upload-label">Arrastrá o hacé click</div>
+          <div class="upload-sublabel">.xlsx / .xls</div>
+        </div>
+        <div id="arcaStatus"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">2.A · ERP CDP / SAP</div>
+        <div class="upload-zone" id="zoneErp" ondragover="event.preventDefault(); this.classList.add('dragover')"
+          ondragleave="this.classList.remove('dragover')" ondrop="handleDrop(event,'erp')">
+          <input type="file" accept=".xlsx,.xls" onchange="loadFile(this,'erp')">
+          <div class="upload-icon">📂</div>
+          <div class="upload-label">Arrastrá o hacé click</div>
+          <div class="upload-sublabel">.xlsx / .xls</div>
+        </div>
+        <div id="erpStatus"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">2.B · ERP E1 (Opcional)</div>
+        <div class="upload-zone" id="zoneE1" ondragover="event.preventDefault(); this.classList.add('dragover')"
+          ondragleave="this.classList.remove('dragover')" ondrop="handleDrop(event,'e1')">
+          <input type="file" accept=".xlsx,.xls" onchange="loadFile(this,'e1')">
+          <div class="upload-icon">📂</div>
+          <div class="upload-label">Arrastrá o hacé click</div>
+          <div class="upload-sublabel">.xlsx / .xls</div>
+        </div>
+        <div id="e1Status"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">3 · Tolerancia</div>
+        <div class="tol-row">
+          <input type="number" id="tolValue" value="0.01" step="0.01" min="0" placeholder="0.01">
+          <select id="tolType">
+            <option value="pct">%</option>
+            <option value="fixed">$</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">4 · Filtro de Fecha (CDP)</div>
+        <div style="display:flex; align-items:center; gap:8px; padding:8px 0;">
+          <input type="checkbox" id="enablePostingFilter" onchange="togglePostingFilter()"
+            title="Habilitar filtro por fecha de posting">
+          <label for="enablePostingFilter" style="font-size:12px; color:var(--text2); cursor:pointer; flex:1;">Filtrar
+            por fecha de posting</label>
+        </div>
+        <div id="postingFilterControls" style="display:none; margin-top:8px;">
+          <select id="postingDateSelect" onchange="reconcile()"
+            style="width:100%; background:var(--surface2); border:1px solid var(--border2); border-radius:8px; color:var(--text); padding:8px 10px; font-family:var(--sans); font-size:13px;">
+            <option value="">Seleccioná una fecha...</option>
+          </select>
+        </div>
+        <div style="font-size:11px; color:var(--text3); font-family:var(--mono); margin-top:4px;">Fechas disponibles:
+          <span id="postingDatesCount">0</span>
+        </div>
+      </div>
+
+      <div class="section" id="statsSection" style="display:none;">
+        <div class="section-title">Resultados</div>
+        <div class="stat-grid" id="statGrid"></div>
+        <div id="progressWrap" style="display:none; margin-top:10px;">
+          <div style="font-size:11px; color:var(--text3); margin-bottom:4px;" id="progressLabel">Procesando…</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+          </div>
+        </div>
+        <button class="btn-export" id="exportBtn" onclick="exportReport()" disabled>📥 Descargar Excel</button>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Preguntas rápidas</div>
+        <div class="chips">
+          <div class="chip" onclick="ask('¿Cuántas facturas tienen error de monto?')">Errores de monto</div>
+          <div class="chip" onclick="ask('Dame un resumen ejecutivo')">Resumen</div>
+          <div class="chip" onclick="ask('¿Hay facturas duplicadas entre distintos ERPs?')">Dup. entre ERPs</div>
+          <div class="chip" onclick="ask('¿Cuáles tienen error de moneda?')">Error de moneda</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="chat-area">
+      <div class="messages" id="messages"></div>
+      <div class="input-bar">
+        <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
+          <textarea id="userInput" placeholder="Preguntá sobre las facturas cargadas…" onkeydown="handleKey(event)"
+            oninput="updateCharCount(this)" rows="1"></textarea>
+          <div class="char-count" id="charCount" style="display:none;"></div>
+        </div>
+        <button class="btn-send" id="sendBtn" onclick="sendMessage()" title="Enviar (Enter)">↑</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ══════════════════════════════════════════════════════
+    //  CONSTANTS & CONFIG
+    // ══════════════════════════════════════════════════════
+    const MAX_CONTEXT_ROWS = 200;
+    const MAX_INPUT_CHARS = 1000;
+    const API_TIMEOUT_MS = 30000;
+    const MAX_RETRIES = 2;
+
+    const PROVIDERS = {
+      gemini: {
+        label: 'Google Gemini',
+        endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        models: [
+          { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Recomendado)' },
+          { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+          { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+          { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Legacy)' },
+          { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Legacy)' },
+          { value: 'custom', label: 'Otro modelo...' }
+        ],
+        model: 'gemini-2.5-flash',
+        placeholder: 'AIza...',
+        validateKey: k => k.startsWith('AIza'),
+        hint: `📍 <strong>¿No tenés API key?</strong><br>Creala en <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>`
+      },
+      openai: {
+        label: 'OpenAI',
+        endpoint: 'https://api.openai.com/v1/chat/completions',
+        models: [
+          { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Recomendado)' },
+          { value: 'gpt-4o', label: 'GPT-4o' },
+          { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+          { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo (Legacy)' },
+          { value: 'custom', label: 'Otro modelo...' }
+        ],
+        model: 'gpt-4o-mini',
+        placeholder: 'sk-...',
+        validateKey: k => k.startsWith('sk-'),
+        hint: `📍 <strong>¿No tenés API key?</strong><br>Creala en <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a>`
+      }
+    };
+
+    const REQUIRED_COLS = {
+      arca: ['monto', 'tipo cambio'],
+      erp: ['monto', 'tipo cambio']
+    };
+
+    const COL_MAP = {
+      ARCA: {
+        'fecha': 'issue_date', 'proveedor': 'vendor',
+        'denominación receptor': 'vendor', 'denominacion receptor': 'vendor',
+        'denominacion': 'vendor', 'monto': 'amount',
+        'moneda': 'currency', 'moneda 2': 'currency',
+        'tipo cambio': 'exchange_rate',
+        'nro. doc. emisor': 'cuit',
+        'punto de venta': 'punto_venta',
+        'número desde': 'nro_desde',
+        'concatenado': 'concatenado', 'duplicados': 'duplicados'
+      },
+      CDP: {
+        'fecha emision': 'issue_date', 'tipo de doc': 'doc_type', 'nro doc': 'doc_type',
+        'proveedor': 'vendor', 'moneda': 'currency',
+        'monto': 'amount', 'monto total': 'amount',
+        'fecha posting': 'posting_date', 'posting date': 'posting_date', 'posting_date': 'posting_date',
+        'tipo cambio': 'exchange_rate',
+        'cuit': 'cuit',
+        'factura': 'factura',
+        'concatenado': 'concatenado', 'erp': 'erp', 'duplicados': 'duplicados'
+      }
+    };
+
+    const CURRENCY_MAP = {
+      ARCA: { 'PES': 'ARS', 'DOL': 'USD', 'EUR': 'EUR', 'EURO': 'EUR', '&EUR': 'EUR', '&EURO': 'EUR' },
+      genericas: { 'PESO': 'ARS', 'PESOS': 'ARS', 'DOLAR': 'USD', 'DOLARES': 'USD', 'EURO': 'EUR' }
+    };
+
+    const DEFAULT_ERP_CURRENCY = 'ARS';
+
+    // ══════════════════════════════════════════════════════
+    //  STATE
+    // ══════════════════════════════════════════════════════
+    const state = {
+      provider: 'gemini',
+      model: 'gemini-2.5-flash',
+      apiKey: null,
+      useProxy: false,
+      proxyUrl: 'http://localhost:3000/api/chat',
+      arcaData: null,
+      erpData: null,
+      e1Data: null,
+      results: null,
+      conversationHistory: [],
+      processing: false,
+      lastUserMessage: null,
+      lastPostingDate: null
+    };
+
+    // ══════════════════════════════════════════════════════
+    //  PROVIDER SWITCHER
+    // ══════════════════════════════════════════════════════
+    function changeProvider() {
+      const p = document.getElementById('apiProvider').value;
+      state.provider = p;
+      const cfg = PROVIDERS[p];
+
+      document.getElementById('apiKeyInput').value = '';
+      document.getElementById('apiKeyInput').placeholder = cfg.placeholder;
+      
+      const modelSelect = document.getElementById('apiModel');
+      modelSelect.innerHTML = '';
+      cfg.models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.value;
+        opt.textContent = m.label;
+        modelSelect.appendChild(opt);
+      });
+      modelSelect.value = cfg.model;
+      state.model = cfg.model;
+
+      document.getElementById('rowCustomModel').style.display = 'none';
+      document.getElementById('customModelInput').value = '';
+
+      document.getElementById('apiHint').innerHTML = cfg.hint;
+      document.getElementById('keyLabel').textContent = `API Key de ${cfg.label}`;
+      clearApiError();
+
+      updateEndpointDisplay();
+    }
+
+    function toggleProxy() {
+      const useProxy = document.getElementById('useProxy').checked;
+      document.getElementById('rowProxyUrl').style.display = useProxy ? '' : 'none';
+    }
+
+    function changeModel() {
+      const modelVal = document.getElementById('apiModel').value;
+      if (modelVal === 'custom') {
+        document.getElementById('rowCustomModel').style.display = '';
+        state.model = document.getElementById('customModelInput').value.trim() || (state.provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini');
+      } else {
+        document.getElementById('rowCustomModel').style.display = 'none';
+        state.model = modelVal;
+      }
+      updateEndpointDisplay();
+    }
+
+    function updateCustomModel() {
+      const customVal = document.getElementById('customModelInput').value.trim();
+      state.model = customVal || (state.provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini');
+      updateEndpointDisplay();
+    }
+
+    function updateEndpointDisplay() {
+      const cfg = PROVIDERS[state.provider];
+      const endpointInput = document.getElementById('apiEndpoint');
+      const rowEndpoint = document.getElementById('rowEndpoint');
+
+      if (state.provider === 'gemini') {
+        endpointInput.value = `https://generativelanguage.googleapis.com/v1beta/models/${state.model}:generateContent`;
+        rowEndpoint.style.display = '';
+      } else if (cfg.endpoint) {
+        endpointInput.value = cfg.endpoint;
+        rowEndpoint.style.display = '';
+      } else {
+        rowEndpoint.style.display = 'none';
+      }
+    }
+
+    function clearApiError() {
+      document.getElementById('apiError').textContent = '';
+    }
+
+    function togglePostingFilter() {
+      const enabled = document.getElementById('enablePostingFilter').checked;
+      const controls = document.getElementById('postingFilterControls');
+      controls.style.display = enabled ? 'block' : 'none';
+      if (enabled) {
+        populatePostingDates();
+      } else {
+        reconcile();
+      }
+    }
+
+    function populatePostingDates() {
+      const select = document.getElementById('postingDateSelect');
+      const countSpan = document.getElementById('postingDatesCount');
+
+      while (select.options.length > 1) {
+        select.remove(1);
+      }
+
+      if (!state.erpData) {
+        countSpan.textContent = '0';
+        return;
+      }
+
+      const dates = new Set();
+      for (const row of state.erpData) {
+        const mapped = mapRow(row, 'CDP');
+        if (mapped.posting_date) {
+          const d = parseDate(mapped.posting_date);
+          if (d) {
+            dates.add(dateToString(d));
+          }
+        }
+      }
+
+      const sortedDates = Array.from(dates).sort().reverse();
+      for (const dateStr of sortedDates) {
+        const option = document.createElement('option');
+        option.value = dateStr;
+        option.textContent = dateStr;
+        select.appendChild(option);
+      }
+
+      countSpan.textContent = sortedDates.length;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  CONNECTION
+    // ══════════════════════════════════════════════════════
+    function connectApi() {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      const cfg = PROVIDERS[state.provider];
+
+      if (!key || !cfg.validateKey(key)) {
+        document.getElementById('apiError').textContent =
+          `❌ API key inválida. Debe empezar con "${cfg.placeholder.split('.')[0]}..."`;
+        return;
+      }
+
+      state.apiKey = key;
+      state.useProxy = document.getElementById('useProxy').checked;
+      state.proxyUrl = document.getElementById('proxyUrlInput').value.trim();
+
+      document.getElementById('apiScreen').style.display = 'none';
+      document.getElementById('statusProvider').textContent = `🔑 ${cfg.label} (${state.model})${state.useProxy ? ' [Proxy]' : ''}`;
+      document.getElementById('statusBadge').style.display = 'flex';
+
+      showToast('✅ Conectado — clave solo en memoria de sesión', 'success');
+      addMessage('agent', `👋 ¡Listo! Conectado a <strong>${cfg.label}</strong> con el modelo <strong>${state.model}</strong>${state.useProxy ? ' a través de Proxy' : ''}.<br>Cargá los archivos ARCA y ERP para comenzar el control de integridad y duplicados.`);
+    }
+
+    function changeKey() {
+      state.apiKey = null;
+      state.conversationHistory = [];
+      document.getElementById('apiKeyInput').value = '';
+      document.getElementById('apiScreen').style.display = 'flex';
+      document.getElementById('statusBadge').style.display = 'none';
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  FILE LOADING & VALIDATION
+    // ══════════════════════════════════════════════════════
+    function handleDrop(e, type) {
+      e.preventDefault();
+      const zone = e.currentTarget;
+      zone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      if (!file.name.match(/\.xlsx?$/i)) {
+        showToast('❌ Solo se aceptan archivos .xlsx o .xls', 'error'); return;
+      }
+      processFile(file, type);
+    }
+
+    function loadFile(input, type) {
+      const file = input.files[0];
+      if (!file) return;
+      if (!file.name.match(/\.xlsx?$/i)) {
+        showToast('❌ Solo se aceptan archivos .xlsx o .xls', 'error'); return;
+      }
+      processFile(file, type);
+      input.value = '';
+    }
+
+    function mapRow(row, source) {
+      const map = source === 'ARCA' ? COL_MAP.ARCA : COL_MAP.CDP;
+      const mapped = {};
+      for (const [key, val] of Object.entries(row)) {
+        const normalized = map[key.trim().toLowerCase()] || key;
+        mapped[normalized] = val;
+      }
+
+      let concatenado = mapped.concatenado || '';
+      if (source === 'ARCA') {
+        if (mapped.cuit !== undefined && mapped.punto_venta !== undefined && mapped.nro_desde !== undefined) {
+          const cuitStr = String(mapped.cuit).replace(/\D/g, '').padStart(11, '0');
+          const pvStr = String(mapped.punto_venta).replace(/\D/g, '').padStart(4, '0');
+          const ndStr = String(mapped.nro_desde).replace(/\D/g, '').padStart(8, '0');
+          concatenado = cuitStr + pvStr + ndStr;
+        }
+      } else if (source === 'CDP' || source === 'E1') {
+        if (mapped.cuit !== undefined && mapped.factura !== undefined) {
+          const cuitStr = String(mapped.cuit).replace(/\D/g, '').padStart(11, '0');
+          let factStr = mapped.factura;
+          if (typeof factStr === 'number') {
+            factStr = factStr.toLocaleString('fullwide', { useGrouping: false });
+          } else {
+            factStr = String(factStr).trim();
+          }
+          factStr = factStr.replace(/\D/g, '').padStart(12, '0');
+          concatenado = cuitStr + factStr;
+        }
+      }
+
+      return {
+        concatenado: concatenado,
+        exchange_rate: mapped.exchange_rate || '',
+        amount: parseAmount(mapped.amount),
+        currency: normalizeCurrency(mapped.currency, source),
+        vendor: mapped.vendor || '',
+        issue_date: mapped.issue_date || '',
+        posting_date: mapped.posting_date || '',
+        doc_type: mapped.doc_type || '',
+        erp: mapped.erp || source,
+        duplicados: mapped.duplicados || false
+      };
+    }
+
+    // FIX: Usa toLocaleDateString('sv') para evitar desfase de zona horaria UTC-3
+    function dateToString(d) {
+      if (!d) return '';
+      return d.toLocaleDateString('sv'); // 'sv' → YYYY-MM-DD en zona horaria local
+    }
+
+    function processFile(file, type) {
+      const statusId = { arca: 'arcaStatus', erp: 'erpStatus', e1: 'e1Status' }[type];
+      const zoneId = { arca: 'zoneArca', erp: 'zoneErp', e1: 'zoneE1' }[type];
+
+      document.getElementById(statusId).innerHTML = '<div class="file-badge" style="color:var(--text2)">⏳ Leyendo…</div>';
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
+          if (!wb.SheetNames.length) throw new Error('El archivo no contiene hojas.');
+
+          const expectedSheetName = type === 'arca' ? 'AFIP' : 'CDP';
+          let targetSheetName = wb.SheetNames[0];
+          if (wb.SheetNames.includes(expectedSheetName)) {
+            targetSheetName = expectedSheetName;
+          }
+
+          const raw = XLSX.utils.sheet_to_json(wb.Sheets[targetSheetName], { defval: null });
+          if (!raw.length) throw new Error('La hoja está vacía.');
+
+          const sourceKey = type === 'arca' ? 'arca' : 'erp';
+          const missing = validateColumns(raw[0], REQUIRED_COLS[sourceKey]);
+
+          if (type === 'arca') state.arcaData = raw;
+          else if (type === 'erp') state.erpData = raw;
+          else state.e1Data = raw;
+
+          document.getElementById(zoneId).style.background = 'rgba(79,255,176,.03)';
+
+          let statusHtml = `<div class="file-badge">✅ ${escHtml(file.name)} (${raw.length} filas)</div>`;
+          if (missing.length) {
+            statusHtml += `<div class="file-badge file-badge-warn" style="margin-top:6px">⚠️ Cols. no detectadas: ${missing.join(', ')}</div>`;
+          } else {
+            statusHtml += buildValidationPills(raw[0], sourceKey);
+          }
+          document.getElementById(statusId).innerHTML = statusHtml;
+          showToast(`✅ ${file.name} cargado`, 'success');
+
+          if (state.arcaData && (state.erpData || state.e1Data)) {
+            reconcile();
+          }
+
+          if (type === 'erp' && document.getElementById('enablePostingFilter')?.checked) {
+            populatePostingDates();
+          }
+
+        } catch (err) {
+          document.getElementById(statusId).innerHTML =
+            `<div class="file-badge file-badge-warn">❌ ${escHtml(err.message)}</div>`;
+          showToast('❌ Error al leer archivo: ' + err.message, 'error');
+        }
+      };
+      reader.onerror = () => showToast('❌ No se pudo leer el archivo', 'error');
+      reader.readAsBinaryString(file);
+    }
+
+    function validateColumns(sampleRow, requiredNormalized) {
+      const keys = Object.keys(sampleRow).map(k => String(k).trim().toLowerCase());
+      return requiredNormalized.filter(req => !keys.includes(String(req).toLowerCase()));
+    }
+
+    function buildValidationPills(sampleRow, sourceKey) {
+      const keys = Object.keys(sampleRow).map(k => String(k).trim().toLowerCase());
+      const req = REQUIRED_COLS[sourceKey];
+      const pills = req.map(col => {
+        const found = keys.includes(String(col).toLowerCase());
+        return `<span class="pill ${found ? 'ok' : 'missing'}">${found ? '✓' : '✗'} ${col}</span>`;
+      });
+      return `<div class="validation-pills">${pills.join('')}</div>`;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  NORMALIZATION
+    // ══════════════════════════════════════════════════════
+    function normalizeCurrency(currency, source) {
+      if (!currency) return source === 'CDP' || source === 'E1' ? DEFAULT_ERP_CURRENCY : null;
+      const s = String(currency).trim().toUpperCase();
+      if (source === 'ARCA' && CURRENCY_MAP.ARCA[s]) return CURRENCY_MAP.ARCA[s];
+      if (CURRENCY_MAP.genericas[s]) return CURRENCY_MAP.genericas[s];
+      return s;
+    }
+
+    function parseAmount(val) {
+      if (val === null || val === undefined) return 0;
+      if (typeof val === 'number') return isNaN(val) ? 0 : val;
+      let s = String(val).replace(/[^\d.,-]/g, '').trim();
+      if (!s) return 0;
+      if (s.includes(',') && s.includes('.')) {
+        s = s.lastIndexOf(',') > s.lastIndexOf('.')
+          ? s.replace(/\./g, '').replace(',', '.')
+          : s.replace(/,/g, '');
+      } else if (s.includes(',')) {
+        // FIX: Contexto Argentina → coma decimal, punto separador de miles
+        // Si solo hay coma, tratarla como decimal (ej: "1500,50" → 1500.50)
+        // Solo tratar como separador de miles si hay exactamente 3 dígitos después Y hay más dígitos antes
+        const parts = s.split(',');
+        if (parts.length === 2 && parts[1].length === 3 && parts[0].length > 3) {
+          s = s.replace(',', ''); // separador de miles: "1,500" → "1500"
+        } else {
+          s = s.replace(',', '.'); // decimal: "1500,50" → "1500.50"
+        }
+      }
+      const n = parseFloat(s);
+      return isNaN(n) ? 0 : n;
+    }
+
+    function parseDate(val) {
+      if (!val) return null;
+      if (val instanceof Date) return val;
+      const s = String(val).trim();
+      let d = new Date(s);
+      if (isNaN(d.getTime())) {
+        const num = parseFloat(s);
+        if (!isNaN(num) && num > 0) {
+          d = new Date((num - 25569) * 86400 * 1000);
+        } else return null;
+      }
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    function reconcile() {
+      if (state.processing) return;
+      state.processing = true;
+      showProgress(true, 'Normalizando datos…', 10);
+      document.getElementById('statsSection').style.display = '';
+
+      setTimeout(() => {
+        try {
+          const tolValue = parseFloat(document.getElementById('tolValue').value) || 0;
+          const tolType = document.getElementById('tolType').value;
+
+          const arcaRows = state.arcaData.map(r => mapRow(r, 'ARCA'));
+          showProgress(true, 'Procesando ERP…', 30);
+
+          let erpRows = [];
+          if (state.erpData) erpRows = [...erpRows, ...state.erpData.map(r => mapRow(r, 'CDP'))];
+          if (state.e1Data) erpRows = [...erpRows, ...state.e1Data.map(r => mapRow(r, 'E1'))];
+
+          const postingDates = [];
+          for (const row of erpRows) {
+            if (row.posting_date) {
+              const d = parseDate(row.posting_date);
+              if (d) postingDates.push(d);
+            }
+          }
+          if (postingDates.length) {
+            postingDates.sort((a, b) => b - a);
+            state.lastPostingDate = postingDates[0];
+          }
+
+          const selectedDate = document.getElementById('postingDateSelect')?.value;
+          if (document.getElementById('enablePostingFilter')?.checked && selectedDate) {
+            erpRows = erpRows.filter(row => {
+              if (!row.posting_date) return false;
+              const d = parseDate(row.posting_date);
+              return d ? dateToString(d) === selectedDate : false;
+            });
+          }
+
+          showProgress(true, 'Cruzando registros…', 60);
+
+          const erpIndex = new Map();
+          for (const row of erpRows) {
+            if (!row.concatenado) continue;
+            if (!erpIndex.has(row.concatenado)) erpIndex.set(row.concatenado, []);
+            erpIndex.get(row.concatenado).push(row);
+          }
+
+          const results = [];
+
+          for (const arcaRow of arcaRows) {
+            const key = arcaRow.concatenado;
+            if (!key) {
+              results.push({ ...arcaRow, status: 'Sin Concatenado', severity: 'warn' });
+              continue;
+            }
+
+            const matches = erpIndex.get(key);
+
+            // Si no hay match en ERP simplemente se omite (el ERP tiene rango acotado de fechas)
+            if (!matches || !matches.length) continue;
+
+            const match = matches[0];
+
+            const amtDiff = Math.abs(arcaRow.amount - match.amount);
+            const tolerance = tolType === 'pct'
+              ? (arcaRow.amount * tolValue / 100)
+              : tolValue;
+
+            let status = 'OK', severity = 'ok';
+
+            const arcaTc = Number(arcaRow.exchange_rate) || 0;
+            const matchTc = Number(match.exchange_rate) || 0;
+            let tcError = false;
+
+            if (arcaTc >= 2 && matchTc >= 2) {
+              if (arcaTc >= 1300 && arcaTc <= 1500) {
+                if (Math.abs(arcaTc - matchTc) > 100) tcError = true;
+              } else {
+                if (arcaTc !== matchTc) tcError = true;
+              }
+            }
+
+            if (tcError) { status = 'Error de Tipo Cambio'; severity = 'error'; }
+            else if (arcaRow.currency !== match.currency) { status = 'Error de Moneda'; severity = 'error'; }
+            else if (amtDiff > tolerance) { status = 'Error de Monto'; severity = 'error'; }
+
+            results.push({ ...arcaRow, erpMatch: match, status, severity, amtDiff });
+          }
+
+          // Detectar duplicados entre distintos ERPs (misma factura en CDP + E1, etc.)
+          // Agrupar todas las filas del ERP por concatenado y ver si hay más de un ERP distinto
+          const erpByConcat = new Map();
+          for (const row of erpRows) {
+            if (!row.concatenado) continue;
+            if (!erpByConcat.has(row.concatenado)) erpByConcat.set(row.concatenado, new Set());
+            erpByConcat.get(row.concatenado).add(row.erp || 'ERP');
+          }
+          // Marcar resultados cuya factura aparece en más de un ERP distinto
+          for (const r of results) {
+            if (!r.concatenado) continue;
+            const erps = erpByConcat.get(r.concatenado);
+            if (erps && erps.size > 1) {
+              r.status = `Duplicado entre ERPs (${[...erps].join(' + ')})`;
+              r.severity = 'warn';
+              r.crossErpSystems = [...erps];
+            }
+          }
+
+          state.results = results;
+
+          showProgress(true, 'Calculando estadísticas…', 90);
+          const stats = computeStats(results);
+          renderStats(stats);
+          showProgress(false);
+
+          document.getElementById('exportBtn').disabled = false;
+
+          addMessage('agent', buildSummaryHtml(stats));
+          state.conversationHistory = [];
+          state.processing = false;
+        } catch (err) {
+          showProgress(false);
+          state.processing = false; // FIX: siempre se resetea aunque falle
+          addMessage('agent', `<div class="error-alert">❌ Error en control de integridad y duplicados: ${escHtml(err.message)}</div>`);
+        }
+      }, 50);
+    }
+
+    function computeStats(results) {
+      const total = results.length;
+      const ok = results.filter(r => r.severity === 'ok').length;
+      const errors = results.filter(r => r.severity === 'error').length;
+      const warnings = results.filter(r => r.severity === 'warn').length;
+      const amtErr = results.filter(r => r.status === 'Error de Monto').length;
+      const curErr = results.filter(r => r.status === 'Error de Moneda').length;
+      const tcErr = results.filter(r => r.status === 'Error de Tipo Cambio').length;
+      const crossErpDup = results.filter(r => r.status?.startsWith('Duplicado entre ERPs')).length;
+      return { total, ok, errors, warnings, amtErr, curErr, tcErr, crossErpDup };
+    }
+
+    function renderStats(s) {
+      const pctFn = v => s.total ? Math.round(v / s.total * 100) : 0;
+      document.getElementById('statGrid').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${s.total}</div></div>
+    <div class="stat-card"><div class="stat-label">OK</div><div class="stat-value ok">${s.ok} <span style="font-size:12px;color:var(--text3)">(${pctFn(s.ok)}%)</span></div></div>
+    <div class="stat-card"><div class="stat-label">Error Monto</div><div class="stat-value error">${s.amtErr}</div></div>
+    <div class="stat-card"><div class="stat-label">Error Moneda</div><div class="stat-value error">${s.curErr}</div></div>
+    <div class="stat-card"><div class="stat-label">Error T/C</div><div class="stat-value error">${s.tcErr}</div></div>
+    <div class="stat-card"><div class="stat-label">Dup. entre ERPs</div><div class="stat-value warn">${s.crossErpDup}</div></div>
+  `;
+    }
+
+    function buildSummaryHtml(s) {
+      return `
+    <strong>📊 Control de integridad y duplicados completado</strong><br>
+    <table>
+      <tr><th>Categoría</th><th>Cantidad</th></tr>
+      <tr><td>✅ Coincidencias OK</td><td class="ok-cell">${s.ok}</td></tr>
+      <tr><td>❌ Error de Monto</td><td class="err-cell">${s.amtErr}</td></tr>
+      <tr><td>❌ Error de Moneda</td><td class="err-cell">${s.curErr}</td></tr>
+      <tr><td>❌ Error de Tipo de Cambio</td><td class="err-cell">${s.tcErr}</td></tr>
+      <tr><td>⚠️ Duplicados entre ERPs</td><td class="warn-cell">${s.crossErpDup}</td></tr>
+    </table>
+    <br>Podés preguntarme detalles sobre cualquier categoría.`;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  AI CALL — con retry logic, timeout y manejo correcto de historial
+    // ══════════════════════════════════════════════════════
+    async function callAI(userMessage, attempt = 0) {
+      const cfg = PROVIDERS[state.provider];
+      const contextSummary = buildContextSummary();
+
+      // FIX: NO agregar el turno de usuario al historial hasta confirmar respuesta exitosa
+      const MAX_HISTORY = 8;
+      const history = state.conversationHistory.slice(-MAX_HISTORY);
+
+      const systemPrompt = `Sos un auditor experto en facturas de proveedores para empresas argentinas.
+Tenés acceso a los resultados de un control de integridad y duplicados entre ARCA/AFIP y los sistemas ERP (CDP, SAP, E1).
+Respondé siempre en español, de forma concisa y profesional.
+Si hay datos disponibles, usá los números exactos.
+No inventes datos que no estén en el contexto.
+
+CONTEXTO DE CONTROL DE INTEGRIDAD Y DUPLICADOS:
+${contextSummary}`;
+
+      const messages = [...history, { role: 'user', content: userMessage }];
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('La solicitud tardó demasiado (timeout 30s). Intentá de nuevo.')), API_TIMEOUT_MS)
+      );
+
+      let url = '';
+      let headers = { 'Content-Type': 'application/json' };
+      let bodyObj = {};
+
+      if (state.provider === 'gemini') {
+        url = `https://generativelanguage.googleapis.com/v1beta/models/${state.model}:generateContent?key=${state.apiKey}`;
+        bodyObj = {
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: messages.map(m => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content }]
+          })),
+          generationConfig: { maxOutputTokens: 800 }
+        };
+      } else if (state.provider === 'openai') {
+        const openaiRequest = {
+          model: state.model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...messages.map(m => ({ role: m.role, content: m.content }))
+          ],
+          max_tokens: 800
+        };
+
+        if (state.useProxy) {
+          url = state.proxyUrl;
+          bodyObj = {
+            targetEndpoint: 'https://api.openai.com/v1/chat/completions',
+            provider: 'OpenAI',
+            apiKey: state.apiKey,
+            request: openaiRequest
+          };
+        } else {
+          url = 'https://api.openai.com/v1/chat/completions';
+          headers['Authorization'] = `Bearer ${state.apiKey}`;
+          bodyObj = openaiRequest;
+        }
+      }
+
+      const fetchPromise = fetch(url, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(bodyObj)
+      });
+
+      try {
+        const response = await Promise.race([fetchPromise, timeoutPromise]);
+
+        if (!response.ok) {
+          const errBody = await response.json().catch(() => ({}));
+          const errMsg = errBody?.error?.message || `HTTP ${response.status}`;
+
+          if (response.status === 429 && attempt < MAX_RETRIES) {
+            const wait = (attempt + 1) * 2000;
+            showToast(`⏳ Rate limit — reintentando en ${wait / 1000}s…`, 'warn');
+            await sleep(wait);
+            return callAI(userMessage, attempt + 1);
+          }
+          throw new Error(errMsg);
+        }
+
+        const data = await response.json();
+        let reply = '';
+        if (state.provider === 'gemini') {
+          reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '(sin respuesta)';
+        } else if (state.provider === 'openai') {
+          reply = data.choices?.[0]?.message?.content || '(sin respuesta)';
+        }
+
+        // Solo agregar al historial si la respuesta fue exitosa
+        state.conversationHistory.push({ role: 'user', content: userMessage });
+        state.conversationHistory.push({ role: 'assistant', content: reply });
+
+        // Mantener historial acotado
+        if (state.conversationHistory.length > MAX_HISTORY) {
+          state.conversationHistory = state.conversationHistory.slice(-MAX_HISTORY);
+        }
+
+        return reply;
+
+      } catch (err) {
+        throw err;
+      }
+    }
+
+    function buildContextSummary() {
+      if (!state.results) return 'No hay datos cargados aún.';
+
+      const stats = computeStats(state.results);
+      let summary = `Total facturas ARCA: ${stats.total}\n`;
+      summary += `OK: ${stats.ok} | Errores monto: ${stats.amtErr} | Errores moneda: ${stats.curErr}\n`;
+      summary += `Duplicados entre ERPs: ${stats.crossErpDup}\n\n`;
+
+      const errorRows = state.results.filter(r => r.severity !== 'ok').slice(0, MAX_CONTEXT_ROWS);
+      if (errorRows.length) {
+        summary += 'Muestra de registros con problemas:\n';
+        for (const r of errorRows.slice(0, 30)) {
+          summary += `- [${r.status}] Concat: ${r.concatenado || 'N/A'} | Monto: ${r.amount} ${r.currency || ''}\n`;
+        }
+        if (errorRows.length > 30) summary += `...y ${errorRows.length - 30} más\n`;
+      }
+
+      return summary;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  CHAT UI
+    // ══════════════════════════════════════════════════════
+    function addMessage(role, html, withRetry = false) {
+      const container = document.getElementById('messages');
+      const div = document.createElement('div');
+      div.className = `msg ${role}`;
+
+      const avatar = document.createElement('div');
+      avatar.className = `avatar ${role}`;
+      avatar.textContent = role === 'agent' ? '🧾' : '👤';
+
+      const bubble = document.createElement('div');
+      bubble.className = `bubble ${role}`;
+      bubble.innerHTML = html;
+
+      if (withRetry && role === 'agent') {
+        const retryWrap = document.createElement('div');
+        retryWrap.className = 'error-alert';
+        retryWrap.innerHTML = `❌ ${html} <button class="retry-btn" onclick="retryLast()">↺ Reintentar</button>`;
+        bubble.innerHTML = '';
+        bubble.appendChild(retryWrap);
+      }
+
+      div.appendChild(avatar);
+      div.appendChild(bubble);
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+      return bubble;
+    }
+
+    function showTyping() {
+      const container = document.getElementById('messages');
+      const div = document.createElement('div');
+      div.className = 'msg agent';
+      div.id = 'typingMsg';
+      div.innerHTML = `
+    <div class="avatar agent">🧾</div>
+    <div class="bubble agent">
+      <div class="typing-indicator"><span></span><span></span><span></span></div>
+    </div>`;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function removeTyping() {
+      document.getElementById('typingMsg')?.remove();
+    }
+
+    async function sendMessage() {
+      const textarea = document.getElementById('userInput');
+      const text = textarea.value.trim();
+      if (!text || state.processing) return;
+      if (!state.apiKey) { showToast('❌ Conectá una API key primero', 'error'); return; }
+      if (text.length > MAX_INPUT_CHARS) {
+        showToast(`❌ Mensaje muy largo (máx. ${MAX_INPUT_CHARS} chars)`, 'error'); return;
+      }
+
+      state.lastUserMessage = text;
+      textarea.value = '';
+      updateCharCount(textarea);
+      addMessage('user', escHtml(text));
+
+      document.getElementById('sendBtn').disabled = true;
+      showTyping();
+
+      try {
+        const reply = await callAI(text);
+        removeTyping();
+        addMessage('agent', escHtml(reply).replace(/\n/g, '<br>'));
+      } catch (err) {
+        removeTyping();
+        addMessage('agent', `❌ Error: ${escHtml(err.message)}`, true);
+        showToast('❌ ' + err.message, 'error');
+      } finally {
+        document.getElementById('sendBtn').disabled = false;
+      }
+    }
+
+    // FIX: retryLast elimina correctamente los últimos 2 turnos (usuario + asistente fallido)
+    function retryLast() {
+      if (!state.lastUserMessage) return;
+      // Eliminar los últimos 2 turnos si existen (pueden no existir si falló antes del push)
+      if (state.conversationHistory.length >= 2) {
+        state.conversationHistory = state.conversationHistory.slice(0, -2);
+      }
+      const msgs = document.getElementById('messages');
+      msgs.lastElementChild?.remove();
+
+      document.getElementById('userInput').value = state.lastUserMessage;
+      sendMessage();
+    }
+
+    function ask(text) {
+      document.getElementById('userInput').value = text;
+      sendMessage();
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    }
+
+    function updateCharCount(textarea) {
+      const len = textarea.value.length;
+      const counter = document.getElementById('charCount');
+      if (len > MAX_INPUT_CHARS * 0.8) {
+        counter.style.display = '';
+        counter.textContent = `${len} / ${MAX_INPUT_CHARS}`;
+        counter.style.color = len > MAX_INPUT_CHARS ? 'var(--danger)' : 'var(--warn)';
+      } else {
+        counter.style.display = 'none';
+      }
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  EXPORT TO EXCEL
+    // ══════════════════════════════════════════════════════
+    function exportReport() {
+      if (!state.results?.length) { showToast('❌ No hay resultados para exportar', 'error'); return; }
+
+      const wb = XLSX.utils.book_new();
+      const stats = computeStats(state.results);
+
+      const summaryData = [
+        ['CONTROL DE INTEGRIDAD Y DUPLICADOS ARCA ↔ ERP - REPORTE PROFESIONAL'],
+        ['Generado', new Date().toLocaleString('es-AR')],
+        ['Fecha de Análisis', new Date().toLocaleDateString('es-AR')],
+        [],
+        ['ESTADÍSTICAS GENERALES'],
+        ['Categoría', 'Cantidad', '% del Total'],
+        ['Total Facturas Analizadas', stats.total, '100%'],
+        ['✅ Coincidencias OK', stats.ok, pct(stats.ok, stats.total)],
+        ['❌ Errores de Monto', stats.amtErr, pct(stats.amtErr, stats.total)],
+        ['❌ Errores de Moneda', stats.curErr, pct(stats.curErr, stats.total)],
+        ['❌ Errores de Tipo de Cambio', stats.tcErr, pct(stats.tcErr, stats.total)],
+        ['⚠️ Duplicados entre ERPs', stats.crossErpDup, pct(stats.crossErpDup, stats.total)],
+        [],
+        ['RESUMEN EJECUTIVO'],
+        [`Se analizaron ${stats.total} facturas de ARCA contra los ERPs cargados.`],
+        [`${stats.ok} facturas (${pct(stats.ok, stats.total)}) conciliaron correctamente.`],
+        [`${stats.errors} facturas (${pct(stats.errors, stats.total)}) presentan errores que requieren atención.`],
+        [`${stats.crossErpDup} facturas aparecen duplicadas en más de un ERP.`]
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryData), 'Resumen');
+
+      const detailRows = state.results.map(r => {
+        const postingDate = r.erpMatch?.posting_date ? dateToString(parseDate(r.erpMatch.posting_date)) : '';
+        return {
+          'Fecha Posting': postingDate,
+          'Estado': r.status,
+          'Severidad': r.severity,
+          'Nro de Factura': r.concatenado || '',
+          'Nro Doc': r.erpMatch?.doc_type || '',
+          'Proveedor': r.erpMatch?.vendor || '',
+          'Moneda ARCA': r.currency || '',
+          'Monto ARCA': r.amount ?? '',
+          'Moneda CDP': r.erpMatch?.currency || '',
+          'Monto CDP': r.erpMatch?.amount ?? '',
+          'Diferencia': r.amtDiff ?? '',
+          'Fecha Emisión': r.issue_date || ''
+        };
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailRows), 'Detalle Completo');
+
+      XLSX.writeFile(wb, `control_integridad_y_duplicados_${datestamp()}.xlsx`);
+      showToast('📥 Excel descargado', 'success');
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  UTILITIES
+    // ══════════════════════════════════════════════════════
+    function escHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    function pct(v, total) { return total ? `${Math.round(v / total * 100)}%` : '0%'; }
+
+    function datestamp() {
+      return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    }
+
+    let toastTimeout;
+    function showToast(msg, type = '') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = `toast show ${type}`;
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => t.className = 'toast', 3500);
+    }
+
+    function showProgress(visible, label = '', pctVal = 0) {
+      const wrap = document.getElementById('progressWrap');
+      const bar = document.getElementById('progressBar');
+      const lbl = document.getElementById('progressLabel');
+      if (visible) {
+        wrap.style.display = '';
+        bar.style.width = pctVal + '%';
+        lbl.textContent = label;
+      } else {
+        bar.style.width = '100%';
+        setTimeout(() => { wrap.style.display = 'none'; bar.style.width = '0%'; }, 600);
+      }
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  INIT
+    // ══════════════════════════════════════════════════════
+    (function init() {
+      changeProvider();
+      addMessage('agent', '👋 Bienvenido al <strong>Control de integridad y duplicados ARCA ↔ ERP</strong>.<br>Conectá tu API key para comenzar.');
+    })();
+  </script>
+</body>
+
+</html>

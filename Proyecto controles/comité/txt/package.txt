@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "reconciliador-proxy",
+  "version": "1.0.0",
+  "description": "Backend proxy para Reconciliador ARCA ↔ ERP",
+  "main": "backend-proxy.js",
+  "scripts": {
+    "start": "node backend-proxy.js",
+    "dev": "node backend-proxy.js"
+  },
+  "keywords": [
+    "arca",
+    "erp",
+    "reconciliacion",
+    "proxy",
+    "cors"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
+}
